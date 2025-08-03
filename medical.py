@@ -6,13 +6,14 @@ from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.media import Image as AgnoImage
 import streamlit as st
 
-# Set your API Key (Replace with your actual key)
-GOOGLE_API_KEY = "AIzaSyCr35hxFrpVsbNWgqOwU6PwmkpwLmO2dJA"
-os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+# Get API Key from environment variables (for deployment security)
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Ensure API Key is provided
 if not GOOGLE_API_KEY:
-    raise ValueError("⚠️ Please set your Google API Key in GOOGLE_API_KEY")
+    st.error("⚠️ Google API Key not found. Please set your GOOGLE_API_KEY in the Streamlit secrets settings.")
+    st.info("To set your API key:\n1. Go to your Streamlit app's settings\n2. Add a secret called 'GOOGLE_API_KEY'\n3. Set its value to your actual Google API key")
+    st.stop()
 
 # Initialize the Medical Agent
 medical_agent = Agent(
@@ -81,7 +82,8 @@ def analyze_medical_image(image_path):
         return f"⚠️ Analysis error: {e}"
     finally:
         # Clean up temporary file
-        os.remove(temp_path)
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
 
 # Streamlit UI setup
 st.set_page_config(page_title="Medical Image Analysis", layout="centered")
@@ -118,6 +120,11 @@ if uploaded_file is not None:
             st.markdown(report, unsafe_allow_html=True)
             
             # Clean up the saved image file
-            os.remove(image_path)
+            if os.path.exists(image_path):
+                os.remove(image_path)
 else:
     st.warning("⚠️ Please upload a medical image to begin analysis.")
+    
+# Additional information about API key setup
+st.sidebar.markdown("---")
+st.sidebar.info("🔒 This app requires a Google API key to function. Make sure you've set it in your Streamlit secrets.")
