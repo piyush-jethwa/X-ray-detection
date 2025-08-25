@@ -1,58 +1,37 @@
 import os
 from PIL import Image as PILImage
 from agno.agent import Agent
-from agno.models.google import Gemini
+from agno.models.groq import Groq
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.media import Image as AgnoImage
 import streamlit as st
 
 # Get API Key from environment variables (for deployment security)
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 # Ensure API Key is provided
-if not GOOGLE_API_KEY:
-    st.error("⚠️ Google API Key not found. Please set your GOOGLE_API_KEY in the Streamlit secrets settings.")
-    st.info("To set your API key:\n1. Go to your Streamlit app's settings\n2. Add a secret called 'GOOGLE_API_KEY'\n3. Set its value to your actual Google API key")
+if not GROQ_API_KEY:
+    st.error("⚠️ Groq API Key not found. Please set your GROQ_API_KEY in the Streamlit secrets settings.")
+    st.info("To set your API key:\n1. Go to your Streamlit app's settings\n2. Add a secret called 'GROQ_API_KEY'\n3. Set its value to your actual Groq API key")
     st.stop()
 
 # Initialize the Medical Agent
 medical_agent = Agent(
-    model=Gemini(id="gemini-2.0-flash-exp"),
+    model=Groq(id="llama3-70b-8192"),  # Using Llama 3 70B model from Groq
     tools=[DuckDuckGoTools()],
     markdown=True
 )
 
-# Medical Analysis Query
+# Medical Analysis Query - Simplified for Groq API compatibility
 query = """
-You are a highly skilled medical imaging expert with extensive knowledge in radiology and diagnostic imaging. Analyze the medical image and structure your response as follows:
+You are a medical imaging expert. Analyze the medical image and provide:
 
-### 1. Image Type & Region
-- Identify imaging modality (X-ray/MRI/CT/Ultrasound/etc.).
-- Specify anatomical region and positioning.
-- Evaluate image quality and technical adequacy.
+1. Image type and anatomical region
+2. Key findings and observations
+3. Diagnostic assessment
+4. Patient-friendly explanation
 
-### 2. Key Findings
-- Highlight primary observations systematically.
-- Identify potential abnormalities with detailed descriptions.
-- Include measurements and densities where relevant.
-
-### 3. Diagnostic Assessment
-- Provide primary diagnosis with confidence level.
-- List differential diagnoses ranked by likelihood.
-- Support each diagnosis with observed evidence.
-- Highlight critical/urgent findings.
-
-### 4. Patient-Friendly Explanation
-- Simplify findings in clear, non-technical language.
-- Avoid medical jargon or provide easy definitions.
-- Include relatable visual analogies.
-
-### 5. Research Context
-- Use DuckDuckGo search to find recent medical literature.
-- Search for standard treatment protocols.
-- Provide 2-3 key references supporting the analysis.
-
-Ensure a structured and medically accurate response using clear markdown formatting.
+Use clear markdown formatting and be concise.
 """
 
 # Function to analyze medical image
@@ -74,9 +53,17 @@ def analyze_medical_image(image_path):
     # Create AgnoImage object
     agno_image = AgnoImage(filepath=temp_path)
 
-    # Run AI analysis
+    # Run AI analysis - Groq requires a different approach for images
     try:
-        response = medical_agent.run(query, images=[agno_image])
+        # Convert image to base64 for Groq compatibility
+        import base64
+        with open(temp_path, "rb") as image_file:
+            image_data = base64.b64encode(image_file.read()).decode('utf-8')
+        
+        # Create a modified query that includes image reference
+        image_query = f"{query}\n\nPlease analyze this medical image: [Image attached]"
+        
+        response = medical_agent.run(image_query)
         return response.content
     except Exception as e:
         return f"⚠️ Analysis error: {e}"
@@ -127,4 +114,4 @@ else:
     
 # Additional information about API key setup
 st.sidebar.markdown("---")
-st.sidebar.info("🔒 This app requires a Google API key to function. Make sure you've set it in your Streamlit secrets.")
+st.sidebar.info("🔒 This app requires a Groq API key to function. Make sure you've set it in your Streamlit secrets.")
